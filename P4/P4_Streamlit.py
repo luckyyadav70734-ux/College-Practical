@@ -42,23 +42,18 @@ with col1:
                 tfidf = TfidfVectorizer(stop_words="english", max_features=max_features)
                 X_train = tfidf.fit_transform(X_train)
                 X_test = tfidf.transform(X_test)
-
                 model = MultinomialNB().fit(X_train, y_train)
                 y_pred = model.predict(X_test)
-
                 st.session_state.model = model
                 st.session_state.tfidf = tfidf
                 st.session_state.accuracy = accuracy_score(y_test, y_pred)
                 st.session_state.report = classification_report(y_test, y_pred)
                 st.session_state.cm = confusion_matrix(y_test, y_pred)
-
                 st.metric("Accuracy", f"{st.session_state.accuracy:.2%}")
         except:
             st.error("Error loading file")
-
 with col2:
     st.subheader("📈 Results")
-
     if "accuracy" in st.session_state:
         st.text(st.session_state.report)
         fig, ax = plt.subplots()
@@ -66,10 +61,8 @@ with col2:
                     xticklabels=["Negative","Positive"],
                     yticklabels=["Negative","Positive"], ax=ax)
         st.pyplot(fig)
-
     st.subheader("🔮 Predict Sentiment")
     text = st.text_area("Enter review")
-
     if st.button("Analyze"):
         if "model" not in st.session_state:
             st.warning("Train model first")
@@ -83,7 +76,6 @@ with col2:
             else:
                 st.error("😞 Negative")
             st.info(f"Accuracy: {st.session_state.accuracy:.2%}")
-
 with st.sidebar:
     example = pd.DataFrame({
         "review": ["Great movie!", "Bad acting"],
