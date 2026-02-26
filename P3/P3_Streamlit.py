@@ -3,11 +3,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+import pandas as pd
 
 st.title("📧 Spam Email Classifier")
-
-# Create two columns
-col1, col2 = st.columns(2)
 
 # Dataset
 emails = [
@@ -33,86 +31,60 @@ emails = [
     "Let's finalize the budget proposal by Friday"
 ]
 
-labels = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+labels = [1]*8 + [0]*12  # 1 = Spam, 0 = Not Spam
 
-# Left column: Dataset and Model Training
+# Layout
+col1, col2 = st.columns(2)
+
+# ---------- Left: Dataset & Training ----------
 with col1:
     st.subheader("📊 Dataset")
-    
-    # Show dataset in a table
-    data_display = []
-    for i, (email, label) in enumerate(zip(emails, labels)):
-        data_display.append({
-            "Email": email,
-            "Label": "Spam" if label == 1 else "Not Spam"
-        })
-    
-    st.dataframe(data_display)
-    
-    if st.button("Train Model", key="train"):
-        with st.spinner("Training model..."):
-            # Vectorize emails
-            vectorizer = TfidfVectorizer(
-                lowercase=True,
-                stop_words='english',
-                ngram_range=(1,2),
-                max_df=0.9,
-                min_df=1
-            )
+
+    df = pd.DataFrame({
+        "Email": emails,
+        "Label": ["Spam" if l else "Not Spam" for l in labels]
+    })
+    st.dataframe(df)
+
+    if st.button("Train Model"):
+        with st.spinner("Training..."):
+            vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1,2))
             X = vectorizer.fit_transform(emails)
-            
-            # Split data
+
             X_train, X_test, y_train, y_test = train_test_split(
                 X, labels, test_size=0.25, random_state=42, stratify=labels
             )
-            
-            # Train model
-            svm_model = LinearSVC(C=1.0)
-            svm_model.fit(X_train, y_train)
-            
-            # Predict and calculate accuracy
-            y_pred = svm_model.predict(X_test)
-            accuracy = accuracy_score(y_test, y_pred)
-            
-            # Store in session state
-            st.session_state['vectorizer'] = vectorizer
-            st.session_state['model'] = svm_model
-            st.session_state['accuracy'] = accuracy
-            
-            st.success(f"✅ Model trained successfully!")
-            st.metric("Model Accuracy", f"{accuracy:.2%}")
 
-# Right column: Prediction
+            model = LinearSVC()
+            model.fit(X_train, y_train)
+
+            accuracy = accuracy_score(y_test, model.predict(X_test))
+
+            st.session_state.model = model
+            st.session_state.vectorizer = vectorizer
+            st.session_state.accuracy = accuracy
+
+        st.success("✅ Model Trained!")
+        st.metric("Accuracy", f"{accuracy:.2%}")
+
+# ---------- Right: Prediction ----------
 with col2:
     st.subheader("🔮 Spam Detection")
-    
-    # Text area for email input
-    new_email = st.text_area(
-        "Enter email text to check:",
-        height=150,
-        placeholder="Paste or type email content here..."
-    )
-    
-    if st.button("Check if Spam", key="predict"):
-        if 'model' not in st.session_state:
-            st.warning("⚠️ Please train the model first!")
+
+    new_email = st.text_area("Enter email text:", height=150)
+
+    if st.button("Check"):
+        if "model" not in st.session_state:
+            st.warning("⚠️ Train the model first.")
         elif not new_email.strip():
-            st.warning("⚠️ Please enter an email text!")
+            st.warning("⚠️ Enter some email text.")
         else:
-            # Get model and vectorizer from session state
-            vectorizer = st.session_state['vectorizer']
-            model = st.session_state['model']
-            
-            # Vectorize and predict
-            new_email_vectorized = vectorizer.transform([new_email])
-            prediction = model.predict(new_email_vectorized)
-            
-            # Display result
-            if prediction[0] == 1:
-                st.error("🚫 **Result: SPAM Email**")
+            vector = st.session_state.vectorizer.transform([new_email])
+            prediction = st.session_state.model.predict(vector)[0]
+
+            if prediction:
+                st.error("🚫 SPAM Email")
             else:
-                st.success("✅ **Result: NOT SPAM (Ham)**")
-            
-            # Show accuracy
-            if 'accuracy' in st.session_state:
-                st.info(f"Model accuracy: {st.session_state['accuracy']:.2%}")
+                st.success("✅ NOT SPAM")
+
+            st.info(f"Model Accuracy: {st.session_state.accuracy:.2%}")
